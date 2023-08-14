@@ -11,13 +11,17 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
-import java.util.stream.Stream;
 
 public final class AutoTool extends JavaPlugin {
 
     private static AutoTool plugin;
     private static String NMS_VERSION;
-    private static String getNMSBlockMethodName;
+    private static Class craftItemStack;
+    private static Method asNMSCopy;
+    private static Method getNMSBlock;
+    private static Method getItem;
+    private static Method getDestroySpeed;
+    private static Class item;
 
     @Override
     public void onEnable() {
@@ -28,13 +32,57 @@ public final class AutoTool extends JavaPlugin {
 
         try {
             Class craftBlockClass = Class.forName("org.bukkit.craftbukkit." + NMS_VERSION + ".block.CraftBlock");
-            Method[] methods = craftBlockClass.getDeclaredMethods();
-            if (Arrays.stream(methods).anyMatch(method -> method.getName().equals("getData0"))) {
-                getNMSBlockMethodName = "getData0";
-            } else if (Arrays.stream(methods).anyMatch(method -> method.getName().equals("getNMS"))) {
-                getNMSBlockMethodName = "getNMS";
-            } else getNMSBlockMethodName = "getNMSBlock";
-        } catch (ClassNotFoundException e) {
+            Method[] craftBlockMethods = craftBlockClass.getDeclaredMethods();
+            for (Method method : craftBlockMethods) {
+                if (method.getParameterCount() == 0 && (method.getName().equals("getData0") || method.getName().equals("getNMS") || method.getName().equals("getNMSBlock"))) {
+                    getNMSBlock = method;
+                    break;
+                }
+            }
+            getNMSBlock.setAccessible(true);
+
+            craftItemStack = Class.forName("org.bukkit.craftbukkit." + NMS_VERSION + ".inventory.CraftItemStack");
+            asNMSCopy = craftItemStack.getDeclaredMethod("asNMSCopy", ItemStack.class);
+            asNMSCopy.setAccessible(true);
+            ItemStack itemStack = new ItemStack(Material.STONE);
+            Object nmsItemStack = asNMSCopy.invoke(craftItemStack, itemStack);
+            Class nmsItemStackClass = nmsItemStack.getClass();
+            Method[] nmsItemStackMethods = nmsItemStackClass.getDeclaredMethods();
+            for (Method method : nmsItemStackMethods) {
+                if (method.getName().equals("getItem")) {
+                    getItem = method;
+                    break;
+                } else if (method.getParameterCount() == 0) {
+                    String returnType = method.getReturnType().getName();
+                    returnType = returnType.substring(returnType.lastIndexOf('.') + 1);
+                    if (returnType.equals("Item")) {
+                        getItem = method;
+                        break;
+                    }
+                }
+            }
+            getItem.setAccessible(true);
+            Object nmsItem = getItem.invoke(nmsItemStack); //nms material
+            Class itemClass = nmsItem.getClass();
+            item = getSuperClass(itemClass);
+            Method[] itemClassMethods = item.getDeclaredMethods();
+            for (Method method : itemClassMethods) {
+                if (method.getName().equals("getDestroySpeed")) {
+                    getDestroySpeed = method;
+                    break;
+                } else {
+                    if (method.getReturnType() == float.class && method.getParameterCount() == 2) {
+                        Class<?>[] parameters = { nmsItemStackClass, getNMSBlock.getReturnType() };
+                        Class<?>[] methodParams = method.getParameterTypes();
+                        if (Arrays.equals(methodParams, parameters)) {
+                            getDestroySpeed = method;
+                            break;
+                        }
+                    }
+                }
+            }
+            getDestroySpeed.setAccessible(true);
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
 
@@ -58,22 +106,10 @@ public final class AutoTool extends JavaPlugin {
             ItemStack itemStack = inventory.getItem(i);
             if (itemStack == null || itemStack.getType() == Material.AIR || block.getDrops(itemStack).isEmpty()) continue;
             try {
-                Class craftItemStackClass = Class.forName("org.bukkit.craftbukkit." + NMS_VERSION + ".inventory.CraftItemStack");
-                Method asNMSCopy = craftItemStackClass.getDeclaredMethod("asNMSCopy", ItemStack.class);
-                Object nmsItemStack = asNMSCopy.invoke(craftItemStackClass, itemStack);
-                Method getItem = nmsItemStack.getClass().getDeclaredMethod("getItem");
+                Object nmsItemStack = asNMSCopy.invoke(craftItemStack, itemStack);
                 Object nmsItem = getItem.invoke(nmsItemStack); //nms material
-                Class itemClass = nmsItem.getClass();
-                itemClass = getSuperClass(itemClass);
 
-                Method getNMSBlockData = block.getClass().getDeclaredMethod(getNMSBlockMethodName);
-                getNMSBlockData.setAccessible(true);
-                Object nmsBlockData = getNMSBlockData.invoke(block);
-                //Method getDestroySpeed = itemClass.getMethod("getDestroySpeed", getSuperClass(nmsItemStack.getClass()), getSuperClass(nmsBlockData.getClass()));
-                Method getDestroySpeed = Stream.of(itemClass.getDeclaredMethods())
-                        .filter((m) -> m.getName().equals("getDestroySpeed"))
-                        .findFirst()
-                        .get();
+                Object nmsBlockData = getNMSBlock.invoke(block);
                 float destroySpeed = (float) getDestroySpeed.invoke(nmsItem, nmsItemStack, nmsBlockData);
                 if (destroySpeed > highest) {
                     highest = destroySpeed;
