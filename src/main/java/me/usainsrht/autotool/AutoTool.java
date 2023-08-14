@@ -9,12 +9,15 @@ import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.stream.Stream;
 
 public final class AutoTool extends JavaPlugin {
 
     private static AutoTool plugin;
     private static String NMS_VERSION;
+    private static String getNMSBlockMethodName;
 
     @Override
     public void onEnable() {
@@ -22,6 +25,18 @@ public final class AutoTool extends JavaPlugin {
 
         String v = Bukkit.getServer().getClass().getPackage().getName();
         NMS_VERSION = v.substring(v.lastIndexOf('.') + 1);
+
+        try {
+            Class craftBlockClass = Class.forName("org.bukkit.craftbukkit." + NMS_VERSION + ".block.CraftBlock");
+            Method[] methods = craftBlockClass.getDeclaredMethods();
+            if (Arrays.stream(methods).anyMatch(method -> method.getName().equals("getData0"))) {
+                getNMSBlockMethodName = "getData0";
+            } else if (Arrays.stream(methods).anyMatch(method -> method.getName().equals("getNMS"))) {
+                getNMSBlockMethodName = "getNMS";
+            } else getNMSBlockMethodName = "getNMSBlock";
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
 
         getServer().getPluginManager().registerEvents(new BlockDamageListener(), this);
     }
@@ -43,7 +58,6 @@ public final class AutoTool extends JavaPlugin {
             ItemStack itemStack = inventory.getItem(i);
             if (itemStack == null || itemStack.getType() == Material.AIR || block.getDrops(itemStack).isEmpty()) continue;
             try {
-                //Bukkit.broadcastMessage("start " + i);
                 Class craftItemStackClass = Class.forName("org.bukkit.craftbukkit." + NMS_VERSION + ".inventory.CraftItemStack");
                 Method asNMSCopy = craftItemStackClass.getDeclaredMethod("asNMSCopy", ItemStack.class);
                 Object nmsItemStack = asNMSCopy.invoke(craftItemStackClass, itemStack);
@@ -52,17 +66,19 @@ public final class AutoTool extends JavaPlugin {
                 Class itemClass = nmsItem.getClass();
                 itemClass = getSuperClass(itemClass);
 
-                Method getNMSBlockData = block.getClass().getDeclaredMethod("getNMSBlock");
+                Method getNMSBlockData = block.getClass().getDeclaredMethod(getNMSBlockMethodName);
                 getNMSBlockData.setAccessible(true);
                 Object nmsBlockData = getNMSBlockData.invoke(block);
-
-                Method getDestroySpeed = itemClass.getMethod("getDestroySpeed", getSuperClass(nmsItemStack.getClass()), getSuperClass(nmsBlockData.getClass()));
+                //Method getDestroySpeed = itemClass.getMethod("getDestroySpeed", getSuperClass(nmsItemStack.getClass()), getSuperClass(nmsBlockData.getClass()));
+                Method getDestroySpeed = Stream.of(itemClass.getDeclaredMethods())
+                        .filter((m) -> m.getName().equals("getDestroySpeed"))
+                        .findFirst()
+                        .get();
                 float destroySpeed = (float) getDestroySpeed.invoke(nmsItem, nmsItemStack, nmsBlockData);
                 if (destroySpeed > highest) {
                     highest = destroySpeed;
                     highestSlot = i;
                 }
-                //Bukkit.broadcastMessage("end " + i);
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -79,7 +95,7 @@ public final class AutoTool extends JavaPlugin {
         Class clazz = claz;
         while (clazz != null) {
             clazz = clazz.getSuperclass();
-            if (clazz == null || clazz == Object.class) break;
+            if (clazz == null || clazz == Object.class || Modifier.isAbstract(clazz.getModifiers())) break;
             claz = clazz;
         }
         return claz;
