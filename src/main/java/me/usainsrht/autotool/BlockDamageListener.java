@@ -6,9 +6,15 @@ import org.bukkit.event.block.BlockDamageEvent;
 
 public class BlockDamageListener implements Listener {
 
+    private AutoTool plugin;
+
+     public BlockDamageListener(AutoTool plugin) {
+         this.plugin = plugin;
+     }
+
     @EventHandler
     public void onBlockDamage(BlockDamageEvent e) {
         if (e.getInstaBreak()) return;
-        AutoTool.autoTool(e.getPlayer(), e.getBlock());
+        plugin.autoTool(e.getPlayer(), e.getBlock());
     }
 }
