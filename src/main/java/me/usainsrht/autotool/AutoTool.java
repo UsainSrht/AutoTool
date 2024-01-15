@@ -138,6 +138,8 @@ public final class AutoTool extends JavaPlugin {
         PlayerInventory inventory = entity.getInventory();
         float highest = 0;
         int highestSlot = -1;
+        float handItemSpeed = 0;
+        int handItemSlot = inventory.getHeldItemSlot();
         for (int i = 0; i < 9; i++) {
             ItemStack itemStack = inventory.getItem(i);
             if (itemStack == null || itemStack.getType() == Material.AIR || block.getDrops(itemStack).isEmpty()) continue;
@@ -147,6 +149,7 @@ public final class AutoTool extends JavaPlugin {
 
                 Object nmsBlockData = getNMSBlock.invoke(block);
                 float destroySpeed = (float) getDestroySpeed.invoke(nmsItem, nmsItemStack, nmsBlockData);
+                if (i == handItemSlot) handItemSpeed = destroySpeed;
                 if (destroySpeed > highest) {
                     highest = destroySpeed;
                     highestSlot = i;
@@ -155,7 +158,7 @@ public final class AutoTool extends JavaPlugin {
                 e.printStackTrace();
             }
         }
-        if (highestSlot == -1) return;
+        if (highestSlot == -1 || highest <= handItemSpeed) return;
         inventory.setHeldItemSlot(highestSlot);
     }
 
