@@ -15,6 +15,7 @@ public class BlockDamageListener implements Listener {
     @EventHandler
     public void onBlockDamage(BlockDamageEvent e) {
         if (e.getInstaBreak()) return;
+        if (!e.getPlayer().hasPermission("autotool.use")) return;
         plugin.autoTool(e.getPlayer(), e.getBlock());
     }
 }
