@@ -1,0 +1,5 @@
+config_version: 1
+
+messages:
+  autotool_on: "&aAutotool enabled"
+  autotool_off: "&cAutotool disabled"

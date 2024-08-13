@@ -15,8 +15,9 @@ import java.util.Arrays;
 
 public final class AutoTool extends JavaPlugin {
 
-    private static AutoTool plugin;
+    private static AutoTool instance;
     private String NMS_VERSION; //ex v1_16_R3
+    private String craftBukkitPackageName;
     private Class craftItemStack; //org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack
     private Method asNMSCopy; //CraftItemStack.asNMSCopy(ItemStack)
     private Method getNMSBlock; //CraftBlock.getNMS()
@@ -26,9 +27,10 @@ public final class AutoTool extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        plugin = this;
+        instance = this;
 
         setNMSVersion();
+        setCraftBukkitPackageName();
 
         try {
             setNMSBlockMethod();
@@ -40,10 +42,19 @@ public final class AutoTool extends JavaPlugin {
         }
 
         getServer().getPluginManager().registerEvents(new BlockDamageListener(this), this);
+
+        getCommand("autotool").setExecutor(new AutoToolCommand(this));
+
+        saveDefaultConfig();
     }
 
-    public static AutoTool getPlugin() {
-        return plugin;
+    public static AutoTool getInstance() {
+        return instance;
+    }
+
+
+    public boolean isAutoToolOn(Player player) {
+        return !getConfig().getStringList("autotool_disabled").contains(player.getUniqueId().toString());
     }
 
     /*
@@ -55,10 +66,21 @@ public final class AutoTool extends JavaPlugin {
     }
 
     /*
+    * Sets craftbukkit package name according to nms version.
+    * */
+    public void setCraftBukkitPackageName() {
+        if (NMS_VERSION == null || NMS_VERSION.equalsIgnoreCase("craftbukkit")) {
+            craftBukkitPackageName = "org.bukkit.craftbukkit";
+        } else {
+            craftBukkitPackageName = "org.bukkit.craftbukkit." + NMS_VERSION;
+        }
+    }
+
+    /*
     * Sets method to get NMSBlock to get destroy speed.
     */
     public void setNMSBlockMethod() throws ClassNotFoundException {
-        Class craftBlockClass = Class.forName("org.bukkit.craftbukkit." + NMS_VERSION + ".block.CraftBlock");
+        Class craftBlockClass = Class.forName(craftBukkitPackageName + ".block.CraftBlock");
         Method[] craftBlockMethods = craftBlockClass.getDeclaredMethods();
         for (Method method : craftBlockMethods) {
             if (method.getParameterCount() == 0 && (method.getName().equals("getData0") || method.getName().equals("getNMS") || method.getName().equals("getNMSBlock"))) {
@@ -73,7 +95,7 @@ public final class AutoTool extends JavaPlugin {
      * Sets method to get CraftItemStack as NMSItemStack.
      */
     public void setAsNMSCopyMethod() throws ClassNotFoundException, NoSuchMethodException {
-        craftItemStack = Class.forName("org.bukkit.craftbukkit." + NMS_VERSION + ".inventory.CraftItemStack");
+        craftItemStack = Class.forName(craftBukkitPackageName + ".inventory.CraftItemStack");
         asNMSCopy = craftItemStack.getDeclaredMethod("asNMSCopy", ItemStack.class);
         asNMSCopy.setAccessible(true);
     }
