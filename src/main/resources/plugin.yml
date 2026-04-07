@@ -2,6 +2,7 @@ name: AutoTool
 version: '${project.version}'
 main: me.usainsrht.autotool.AutoTool
 api-version: '1.13'
+folia-supported: true
 author: UsainSrht
 description: Automatically change your item to what's best in your hotbar when breaking blocks.
 commands:

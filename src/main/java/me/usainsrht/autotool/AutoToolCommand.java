@@ -40,7 +40,7 @@ public class AutoToolCommand implements CommandExecutor {
             }
 
             plugin.getConfig().set("autotool_disabled", disabledList);
-            plugin.saveConfig();
+            plugin.saveConfigSafely();
 
             return true;
         }

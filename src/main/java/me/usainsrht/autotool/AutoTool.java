@@ -1,5 +1,6 @@
 package me.usainsrht.autotool;
 
+import org.bstats.bukkit.Metrics;
 import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
@@ -12,6 +13,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.function.Consumer;
 
 public final class AutoTool extends JavaPlugin {
 
@@ -46,6 +48,9 @@ public final class AutoTool extends JavaPlugin {
         getCommand("autotool").setExecutor(new AutoToolCommand(this));
 
         saveDefaultConfig();
+
+        int pluginId = 30643;
+        Metrics metrics = new Metrics(this, pluginId);
     }
 
     public static AutoTool getInstance() {
@@ -55,6 +60,38 @@ public final class AutoTool extends JavaPlugin {
 
     public boolean isAutoToolOn(Player player) {
         return !getConfig().getStringList("autotool_disabled").contains(player.getUniqueId().toString());
+    }
+
+    /*
+     * Returns true when the server is running Folia (regionalized multithreading).
+     */
+    public static boolean isFolia() {
+        try {
+            Class.forName("io.papermc.paper.threadedregions.RegionizedServer");
+            return true;
+        } catch (ClassNotFoundException ignored) {
+            return false;
+        }
+    }
+
+    /*
+     * Saves the config safely regardless of the server platform.
+     * On Folia, disk I/O is dispatched to the async scheduler via reflection
+     * so it does not block a region thread.
+     */
+    public void saveConfigSafely() {
+        if (isFolia()) {
+            try {
+                Object asyncScheduler = Bukkit.class.getMethod("getAsyncScheduler").invoke(null);
+                Method runNow = asyncScheduler.getClass().getMethod("runNow", org.bukkit.plugin.Plugin.class, Consumer.class);
+                runNow.invoke(asyncScheduler, this, (Consumer<Object>) task -> saveConfig());
+            } catch (Exception e) {
+                // Fallback: save synchronously if reflection fails for any reason
+                saveConfig();
+            }
+        } else {
+            saveConfig();
+        }
     }
 
     /*
