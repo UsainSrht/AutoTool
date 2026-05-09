@@ -23,6 +23,7 @@ public final class AutoTool extends JavaPlugin {
     private Class craftItemStack; //org.bukkit.craftbukkit.v1_16_R3.inventory.CraftItemStack
     private Method asNMSCopy; //CraftItemStack.asNMSCopy(ItemStack)
     private Method getNMSBlock; //CraftBlock.getNMS()
+    private Method getBlockState; //CraftBlock.getState()
     private Method getItem; //net.minecraft.server.world.item.ItemStack.getItem()
     private Method getDestroySpeed; //net.minecraft.server.world.item.Item.getDestroySpeed(ItemStack, Block)
     private Class item; //net.minecraft.server.world.item.Item
@@ -120,7 +121,7 @@ public final class AutoTool extends JavaPlugin {
         Class craftBlockClass = Class.forName(craftBukkitPackageName + ".block.CraftBlock");
         Method[] craftBlockMethods = craftBlockClass.getDeclaredMethods();
         for (Method method : craftBlockMethods) {
-            if (method.getParameterCount() == 0 && (method.getName().equals("getData0") || method.getName().equals("getNMS") || method.getName().equals("getNMSBlock"))) {
+            if (method.getParameterCount() == 0 && (method.getName().equals("getData0") || method.getName().equals("getNMS") || method.getName().equals("getNMSBlock") || method.getName().equals("getBlockState"))) {
                 getNMSBlock = method;
                 break;
             }
