@@ -13,6 +13,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.List;
 import java.util.function.Consumer;
 
 public final class AutoTool extends JavaPlugin {
@@ -60,7 +61,36 @@ public final class AutoTool extends JavaPlugin {
 
 
     public boolean isAutoToolOn(Player player) {
+        return isAutoToolEnabled(player);
+    }
+
+    /**
+     * @return whether AutoTool is enabled for the player.
+     */
+    public boolean isAutoToolEnabled(Player player) {
         return !getConfig().getStringList("autotool_disabled").contains(player.getUniqueId().toString());
+    }
+
+    /**
+     * Enables or disables AutoTool for the given player.
+     */
+    public void setAutoToolEnabled(Player player, boolean enabled) {
+        String uuid = player.getUniqueId().toString();
+        List<String> disabledList = getConfig().getStringList("autotool_disabled");
+
+        if (enabled) {
+            if (disabledList.remove(uuid)) {
+                getConfig().set("autotool_disabled", disabledList);
+                saveConfigSafely();
+            }
+            return;
+        }
+
+        if (!disabledList.contains(uuid)) {
+            disabledList.add(uuid);
+            getConfig().set("autotool_disabled", disabledList);
+            saveConfigSafely();
+        }
     }
 
     /*

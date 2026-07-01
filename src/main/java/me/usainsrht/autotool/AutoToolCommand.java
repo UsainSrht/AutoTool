@@ -7,8 +7,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.List;
-
 public class AutoToolCommand implements CommandExecutor {
 
     private AutoTool plugin;
@@ -28,19 +26,9 @@ public class AutoToolCommand implements CommandExecutor {
             Player player = (Player) commandSender;
 
             boolean currentState = plugin.isAutoToolOn(player);
-
-            List<String> disabledList = plugin.getConfig().getStringList("autotool_disabled");
-
-            if (currentState) {
-                disabledList.add(player.getUniqueId().toString());
-                commandSender.sendMessage(ChatColor.translateAlternateColorCodes('&', plugin.getConfig().getString("messages.autotool_off", "off")));
-            } else {
-                disabledList.remove(player.getUniqueId().toString());
-                commandSender.sendMessage(ChatColor.translateAlternateColorCodes('&', plugin.getConfig().getString("messages.autotool_on", "on")));
-            }
-
-            plugin.getConfig().set("autotool_disabled", disabledList);
-            plugin.saveConfigSafely();
+            plugin.setAutoToolEnabled(player, !currentState);
+            commandSender.sendMessage(ChatColor.translateAlternateColorCodes('&',
+                    plugin.getConfig().getString(currentState ? "messages.autotool_off" : "messages.autotool_on", currentState ? "off" : "on")));
 
             return true;
         }

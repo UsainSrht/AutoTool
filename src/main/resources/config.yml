@@ -1,5 +1,8 @@
 config_version: 1
 
+# Players listed here have AutoTool disabled.
+autotool_disabled: []
+
 messages:
   autotool_on: "&aAutotool enabled"
   autotool_off: "&cAutotool disabled"
